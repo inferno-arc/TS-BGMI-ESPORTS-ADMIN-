@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Admin Login | TS BGMI Esports</title>
+
+  <link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+<main class="admin-login-page">
+
+
+  <div class="admin-login-card">
+
+
+    <div class="admin-logo">
+
+      <strong>TS</strong>
+
+      <span>
+        BGMI
+        <small>ADMIN</small>
+      </span>
+
+    </div>
+
+
+    <div class="admin-login-header">
+
+      <span class="eyebrow">
+        PRIVATE PANEL
+      </span>
+
+      <h1>
+        Admin Login
+      </h1>
+
+      <p>
+        Authorized administrators only.
+      </p>
+
+    </div>
+
+
+    <form id="adminLoginForm">
+
+
+      <div class="input-group">
+
+        <label for="adminEmail">
+          Admin Email
+        </label>
+
+        <input
+          type="text"
+          id="adminEmail"
+          name="adminEmail"
+          placeholder="tsbgmiesports@gmail.com"
+          autocomplete="email"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+          required
+        >
+
+      </div>
+
+
+      <button
+        type="submit"
+        id="adminLoginButton"
+        class="submit-registration"
+      >
+        SEND LOGIN LINK
+      </button>
+
+
+      <p
+        id="adminLoginMessage"
+        class="message"
+      ></p>
+
+
+    </form>
+
+
+  </div>
+
+
+</main>
+
+
+
+<script type="module">
+
+import {
+
+  auth,
+
+  sendSignInLinkToEmail,
+
+  isSignInWithEmailLink,
+
+  signInWithEmailLink,
+
+  signOut
+
+} from "./firebase.js";
+
+
+
+/*
+  ==============================
+  ADMIN UID
+  ==============================
+*/
+
+const ADMIN_UID =
+  "EeEejjxJU8NTWLKiXpAaLHNQ9kE2";
+
+
+
+/*
+  ==============================
+  GITHUB PAGES LOGIN URL
+  ==============================
+*/
+
+const ADMIN_URL =
+  "https://inferno-arc.github.io/TS-BGMI-ESPORTS-ADMIN-/login.html";
+
+
+
+/*
+  ==============================
+  ELEMENTS
+  ==============================
+*/
+
+const form =
+  document.getElementById(
+    "adminLoginForm"
+  );
+
+
+const emailInput =
+  document.getElementById(
+    "adminEmail"
+  );
+
+
+const button =
+  document.getElementById(
+    "adminLoginButton"
+  );
+
+
+const message =
+  document.getElementById(
+    "adminLoginMessage"
+  );
+
+
+
+/*
+  ==============================
+  SHOW MESSAGE
+  ==============================
+*/
+
+function showMessage(
+  text,
+  type = ""
+) {
+
+  message.textContent =
+    text;
+
+  message.className =
+    "message " + type;
+
+}
+
+
+
+/*
+  ==============================
+  SEND LOGIN LINK
+  ==============================
+*/
+
+form.addEventListener(
+  "submit",
+  async (event) => {
+
+    event.preventDefault();
+
+
+    const email =
+      emailInput.value
+        .trim()
+        .toLowerCase();
+
+
+    /*
+      EMAIL VALIDATION
+    */
+
+    if (
+      !email ||
+      !email.includes("@") ||
+      !email.includes(".")
+    ) {
+
+      showMessage(
+        "Please enter a valid admin email address.",
+        "error"
+      );
+
+      emailInput.focus();
+
+      return;
+
+    }
+
+
+    /*
+      CHECK ADMIN EMAIL
+    */
+
+    if (
+      email !==
+      "tsbgmiesports@gmail.com"
+    ) {
+
+      showMessage(
+        "This email is not authorized for the admin panel.",
+        "error"
+      );
+
+      return;
+
+    }
+
+
+    button.disabled =
+      true;
+
+
+    button.textContent =
+      "SENDING...";
+
+
+    showMessage(
+      "Connecting to Firebase..."
+    );
+
+
+    try {
+
+
+      const actionCodeSettings = {
+
+        url:
+          ADMIN_URL,
+
+        handleCodeInApp:
+          true
+
+      };
+
+
+      /*
+        SEND FIREBASE EMAIL LINK
+      */
+
+      await sendSignInLinkToEmail(
+
+        auth,
+
+        email,
+
+        actionCodeSettings
+
+      );
+
+
+      /*
+        SAVE EMAIL
+      */
+
+      localStorage.setItem(
+
+        "adminEmailForSignIn",
+
+        email
+
+      );
+
+
+      showMessage(
+
+        "Login link sent successfully. Check Gmail Inbox, Spam and All Mail.",
+
+        "success"
+
+      );
+
+
+      button.textContent =
+        "LOGIN LINK SENT";
+
+
+    } catch (error) {
+
+      console.error(
+        "Firebase login error:",
+        error
+      );
+
+
+      let errorMessage =
+        "Unable to send login link.";
+
+
+      if (error.code) {
+
+        errorMessage =
+          error.code +
+          " — " +
+          error.message;
+
+      } else if (error.message) {
+
+        errorMessage =
+          error.message;
+
+      }
+
+
+      showMessage(
+        errorMessage,
+        "error"
+      );
+
+
+      button.disabled =
+        false;
+
+
+      button.textContent =
+        "SEND LOGIN LINK";
+
+    }
+
+  }
+);
+
+
+
+/*
+  ==============================
+  COMPLETE EMAIL LINK LOGIN
+  ==============================
+*/
+
+if (
+
+  isSignInWithEmailLink(
+
+    auth,
+
+    window.location.href
+
+  )
+
+) {
+
+
+  let email =
+    localStorage.getItem(
+      "adminEmailForSignIn"
+    );
+
+
+  /*
+    IF EMAIL IS NOT SAVED
+  */
+
+  if (!email) {
+
+    email =
+      window.prompt(
+        "Enter your admin email:"
+      );
+
+  }
+
+
+  if (!email) {
+
+    showMessage(
+      "Admin email is required.",
+      "error"
+    );
+
+  } else {
+
+
+    email =
+      email
+        .trim()
+        .toLowerCase();
+
+
+    try {
+
+
+      showMessage(
+        "Verifying admin account..."
+      );
+
+
+      /*
+        COMPLETE FIREBASE LOGIN
+      */
+
+      const result =
+
+        await signInWithEmailLink(
+
+          auth,
+
+          email,
+
+          window.location.href
+
+        );
+
+
+      /*
+        REMOVE SAVED EMAIL
+      */
+
+      localStorage.removeItem(
+
+        "adminEmailForSignIn"
+
+      );
+
+
+      /*
+        ==========================
+        UID SECURITY CHECK
+        ==========================
+      */
+
+      if (
+
+        result.user.uid !==
+        ADMIN_UID
+
+      ) {
+
+
+        await signOut(auth);
+
+
+        showMessage(
+
+          "Access denied. This Firebase account is not the authorized admin.",
+
+          "error"
+
+        );
+
+
+        return;
+
+      }
+
+
+      /*
+        ==========================
+        ADMIN VERIFIED
+        ==========================
+      */
+
+      showMessage(
+
+        "Admin verified. Opening dashboard...",
+
+        "success"
+
+      );
+
+
+      setTimeout(
+        () => {
+
+          window.location.href =
+            "index.html";
+
+        },
+        500
+      );
+
+
+    } catch (error) {
+
+
+      console.error(
+
+        "Email link login error:",
+
+        error
+
+      );
+
+
+      let errorMessage =
+        "Login failed. Please request a new login link.";
+
+
+      if (error.code) {
+
+        errorMessage =
+          error.code +
+          " — " +
+          error.message;
+
+      } else if (error.message) {
+
+        errorMessage =
+          error.message;
+
+      }
+
+
+      showMessage(
+
+        errorMessage,
+
+        "error"
+
+      );
+
+    }
+
+  }
+
+}
+
+</script>
+
+
+</body>
+
+</html>
