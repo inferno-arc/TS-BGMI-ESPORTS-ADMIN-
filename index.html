@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Admin Dashboard | TS BGMI Esports</title>
+
+  <link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+<header class="admin-topbar">
+
+  <div class="admin-brand">
+
+    <strong>TS</strong>
+
+    <span>
+      BGMI
+      <small>ADMIN</small>
+    </span>
+
+  </div>
+
+
+  <button id="logoutBtn">
+    LOGOUT
+  </button>
+
+</header>
+
+
+
+<main class="admin-dashboard">
+
+
+  <section class="dashboard-heading">
+
+    <span class="eyebrow">
+      PRIVATE CONTROL PANEL
+    </span>
+
+    <h1>
+      Tournament Dashboard
+    </h1>
+
+    <p>
+      Manage registrations and approve teams.
+    </p>
+
+  </section>
+
+
+
+  <!-- STATS -->
+
+  <section class="admin-stats">
+
+
+    <div class="stat-card">
+
+      <small>
+        TOTAL REGISTRATIONS
+      </small>
+
+      <strong id="totalCount">
+        0
+      </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+      <small>
+        PENDING
+      </small>
+
+      <strong id="pendingCount">
+        0
+      </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+      <small>
+        APPROVED
+      </small>
+
+      <strong id="approvedCount">
+        0
+      </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+      <small>
+        REJECTED
+      </small>
+
+      <strong id="rejectedCount">
+        0
+      </strong>
+
+    </div>
+
+
+  </section>
+
+
+
+  <!-- REGISTRATIONS -->
+
+  <section class="registrations-section">
+
+
+    <div class="section-heading">
+
+      <div>
+
+        <span class="eyebrow">
+          TEAM MANAGEMENT
+        </span>
+
+        <h2>
+          Registrations
+        </h2>
+
+      </div>
+
+
+      <button
+        id="refreshBtn"
+        class="refresh-button"
+      >
+        REFRESH
+      </button>
+
+    </div>
+
+
+
+    <div id="registrationList">
+
+      <div class="loading">
+        Loading registrations...
+      </div>
+
+    </div>
+
+
+  </section>
+
+
+</main>
+
+
+
+<script type="module">
+
+import {
+
+  auth,
+
+  db,
+
+  onAuthStateChanged,
+
+  signOut,
+
+  collection,
+
+  getDocs,
+
+  doc,
+
+  updateDoc
+
+} from "./firebase.js";
+
+
+
+const ADMIN_UID =
+  "EeEejjxJU8NTWLKiXpAaLHNQ9kE2";
+
+
+
+const registrationList =
+  document.getElementById(
+    "registrationList"
+  );
+
+
+const totalCount =
+  document.getElementById(
+    "totalCount"
+  );
+
+
+const pendingCount =
+  document.getElementById(
+    "pendingCount"
+  );
+
+
+const approvedCount =
+  document.getElementById(
+    "approvedCount"
+  );
+
+
+const rejectedCount =
+  document.getElementById(
+    "rejectedCount"
+  );
+
+
+const logoutBtn =
+  document.getElementById(
+    "logoutBtn"
+  );
+
+
+const refreshBtn =
+  document.getElementById(
+    "refreshBtn"
+  );
+
+
+
+/*
+  ADMIN AUTH CHECK
+*/
+
+onAuthStateChanged(
+  auth,
+  async (user) => {
+
+    if (!user) {
+
+      window.location.href =
+        "login.html";
+
+      return;
+
+    }
+
+
+    if (
+      user.uid !==
+      ADMIN_UID
+    ) {
+
+      await signOut(auth);
+
+      window.location.href =
+        "login.html";
+
+      return;
+
+    }
+
+
+    await loadRegistrations();
+
+  }
+);
+
+
+
+/*
+  LOAD REGISTRATIONS
+*/
+
+async function loadRegistrations() {
+
+  registrationList.innerHTML = `
+
+    <div class="loading">
+      Loading registrations...
+    </div>
+
+  `;
+
+
+  try {
+
+    const snapshot =
+      await getDocs(
+        collection(
+          db,
+          "registrations"
+        )
+      );
+
+
+    let total = 0;
+
+    let pending = 0;
+
+    let approved = 0;
+
+    let rejected = 0;
+
+
+    let registrations = [];
+
+
+    snapshot.forEach(
+      (registrationDoc) => {
+
+        registrations.push({
+
+          id:
+            registrationDoc.id,
+
+          data:
+            registrationDoc.data()
+
+        });
+
+      }
+    );
+
+
+    /*
+      Newest registrations first
+    */
+
+    registrations.sort(
+      (a, b) => {
+
+        const aTime =
+          a.data.createdAt &&
+          typeof a.data.createdAt.toMillis ===
+          "function"
+
+          ? a.data.createdAt.toMillis()
+
+          : 0;
+
+
+        const bTime =
+          b.data.createdAt &&
+          typeof b.data.createdAt.toMillis ===
+          "function"
+
+          ? b.data.createdAt.toMillis()
+
+          : 0;
+
+
+        return bTime - aTime;
+
+      }
+    );
+
+
+    let html = "";
+
+
+    registrations.forEach(
+      (registration) => {
+
+        const data =
+          registration.data;
+
+
+        total++;
+
+
+        const status =
+          data.status ||
+          "pending";
+
+
+        if (
+          status === "pending"
+        ) {
+
+          pending++;
+
+        }
+
+
+        if (
+          status === "approved"
+        ) {
+
+          approved++;
+
+        }
+
+
+        if (
+          status === "rejected"
+        ) {
+
+          rejected++;
+
+        }
+
+
+        html +=
+          createRegistrationCard(
+            registration.id,
+            data
+          );
+
+      }
+    );
+
+
+    totalCount.textContent =
+      total;
+
+
+    pendingCount.textContent =
+      pending;
+
+
+    approvedCount.textContent =
+      approved;
+
+
+    rejectedCount.textContent =
+      rejected;
+
+
+    if (!html) {
+
+      html = `
+
+        <div class="empty-state">
+
+          No registrations yet.
+
+        </div>
+
+      `;
+
+    }
+
+
+    registrationList.innerHTML =
+      html;
+
+
+    addActionListeners();
+
+
+  } catch (error) {
+
+    console.error(
+      "Firestore error:",
+      error
+    );
+
+
+    registrationList.innerHTML = `
+
+      <div class="empty-state error">
+
+        Unable to load registrations.
+
+        <br><br>
+
+        Check your Firestore rules.
+
+      </div>
+
+    `;
+
+  }
+
+}
+
+
+
+/*
+  CREATE REGISTRATION CARD
+*/
+
+function createRegistrationCard(
+  id,
+  data
+) {
+
+
+  const players =
+    Array.isArray(
+      data.players
+    )
+
+    ? data.players
+
+    : [];
+
+
+  const status =
+    data.status ||
+    "pending";
+
+
+  return `
+
+    <article
+      class="registration-card"
+    >
+
+
+      <div class="registration-header">
+
+
+        <div>
+
+          <span
+            class="registration-status ${status}"
+          >
+            ${status.toUpperCase()}
+          </span>
+
+
+          <h3>
+
+            ${escapeHTML(
+              data.teamName ||
+              "Unnamed Team"
+            )}
+
+          </h3>
+
+
+          <small>
+
+            ${escapeHTML(
+              data.tournamentName ||
+              "Tournament"
+            )}
+
+          </small>
+
+        </div>
+
+
+        <div class="entry-fee">
+
+          <small>
+            ENTRY
+          </small>
+
+          <strong>
+
+            ${escapeHTML(
+              data.entryFee ||
+              "₹20"
+            )}
+
+          </strong>
+
+        </div>
+
+
+      </div>
+
+
+
+      <div class="team-info">
+
+
+        <div class="team-info-row">
+
+          <span>
+            Captain
+          </span>
+
+          <b>
+
+            ${escapeHTML(
+              data.captainEmail ||
+              "-"
+            )}
+
+          </b>
+
+        </div>
+
+
+        <div class="team-info-row">
+
+          <span>
+            Payment Reference
+          </span>
+
+          <b>
+
+            ${escapeHTML(
+              data.paymentReference ||
+              "-"
+            )}
+
+          </b>
+
+        </div>
+
+
+      </div>
+
+
+
+      <div class="players">
+
+        <h4>
+          TEAM MEMBERS
+        </h4>
+
+
+        ${
+          players.length
+
+          ?
+
+          players.map(
+            (player, index) => `
+
+              <div class="player-row">
+
+                <span>
+                  ${index + 1}
+                </span>
+
+
+                <div>
+
+                  <strong>
+
+                    ${escapeHTML(
+                      player.bgmiUsername ||
+                      player.name ||
+                      "-"
+                    )}
+
+                  </strong>
+
+
+                  <small>
+
+                    GAME ID:
+                    ${escapeHTML(
+                      player.bgmiGameId ||
+                      player.id ||
+                      "-"
+                    )}
+
+                  </small>
+
+                </div>
+
+              </div>
+
+            `
+          ).join("")
+
+          :
+
+          `
+
+            <div class="player-row">
+
+              <div>
+
+                <strong>
+                  No player data
+                </strong>
+
+              </div>
+
+            </div>
+
+          `
+
+        }
+
+
+      </div>
+
+
+
+      ${
+        status === "pending"
+
+        ?
+
+        `
+
+          <div class="admin-actions">
+
+
+            <button
+
+              class="approve-btn"
+
+              data-action="approve"
+
+              data-id="${id}"
+
+            >
+
+              APPROVE TEAM
+
+            </button>
+
+
+            <button
+
+              class="reject-btn"
+
+              data-action="reject"
+
+              data-id="${id}"
+
+            >
+
+              REJECT
+
+            </button>
+
+
+          </div>
+
+        `
+
+        :
+
+        ""
+
+      }
+
+
+    </article>
+
+  `;
+
+}
+
+
+
+/*
+  APPROVE / REJECT
+*/
+
+function addActionListeners() {
+
+
+  document
+    .querySelectorAll(
+      "[data-action]"
+    )
+    .forEach(
+      (button) => {
+
+
+        button.addEventListener(
+          "click",
+          async () => {
+
+
+            const id =
+              button.dataset.id;
+
+
+            const action =
+              button.dataset.action;
+
+
+            const newStatus =
+              action === "approve"
+
+              ? "approved"
+
+              : "rejected";
+
+
+            const confirmText =
+              newStatus === "approved"
+
+              ? "Approve this team?"
+
+              : "Reject this team?";
+
+
+            if (
+              !confirm(
+                confirmText
+              )
+            ) {
+
+              return;
+
+            }
+
+
+            button.disabled =
+              true;
+
+
+            button.textContent =
+              "UPDATING...";
+
+
+            try {
+
+
+              await updateDoc(
+
+                doc(
+                  db,
+                  "registrations",
+                  id
+                ),
+
+                {
+
+                  status:
+                    newStatus,
+
+                  reviewedAt:
+                    new Date()
+
+                }
+
+              );
+
+
+              await loadRegistrations();
+
+
+            } catch (error) {
+
+              console.error(
+                error
+              );
+
+
+              alert(
+                "Could not update registration."
+              );
+
+
+              button.disabled =
+                false;
+
+
+              button.textContent =
+                action === "approve"
+
+                ? "APPROVE TEAM"
+
+                : "REJECT";
+
+            }
+
+          }
+        );
+
+      }
+    );
+
+}
+
+
+
+/*
+  REFRESH
+*/
+
+refreshBtn.addEventListener(
+  "click",
+  async () => {
+
+    refreshBtn.disabled =
+      true;
+
+
+    refreshBtn.textContent =
+      "REFRESHING...";
+
+
+    await loadRegistrations();
+
+
+    refreshBtn.disabled =
+      false;
+
+
+    refreshBtn.textContent =
+      "REFRESH";
+
+  }
+);
+
+
+
+/*
+  LOGOUT
+*/
+
+logoutBtn.addEventListener(
+  "click",
+  async () => {
+
+    await signOut(auth);
+
+    window.location.href =
+      "login.html";
+
+  }
+);
+
+
+
+/*
+  BASIC HTML ESCAPE
+*/
+
+function escapeHTML(
+  value
+) {
+
+  return String(value)
+
+    .replaceAll(
+      "&",
+      "&amp;"
+    )
+
+    .replaceAll(
+      "<",
+      "&lt;"
+    )
+
+    .replaceAll(
+      ">",
+      "&gt;"
+    )
+
+    .replaceAll(
+      '"',
+      "&quot;"
+    )
+
+    .replaceAll(
+      "'",
+      "&#039;"
+    );
+
+}
+
+</script>
+
+
+</body>
+
+</html>
